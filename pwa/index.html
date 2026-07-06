@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rota</title>
+<meta name="theme-color" content="#005EB8">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+:root{
+  --blue:#005EB8; --blue-dk:#003d78; --bg:#f4f6f9; --card:#ffffff;
+  --ink:#1a2733; --muted:#5b6b7b; --line:#e3e8ee;
+  --amber:#8a6d00; --amber-bg:#fff3c4; --red:#b00020;
+  --today:#e7f0fa; --accent:#0072ce;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#10161d; --card:#1a232e; --ink:#e8eef4; --muted:#93a3b3;
+    --line:#2a3644; --today:#14263a; --amber:#ffd75e; --amber-bg:#3a3110;
+    --accent:#4da3e8;
+  }
+}
+*{box-sizing:border-box; margin:0}
+html,body{height:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  background:var(--bg); color:var(--ink); font-size:16px;
+  padding-bottom:calc(64px + env(safe-area-inset-bottom));
+}
+header{
+  position:sticky; top:0; z-index:10; background:var(--blue); color:#fff;
+  padding:calc(10px + env(safe-area-inset-top)) 16px 10px;
+  display:flex; align-items:center; gap:10px;
+}
+header h1{font-size:18px; font-weight:700; flex:1}
+header .me{
+  background:rgba(255,255,255,.2); border-radius:14px; padding:3px 12px;
+  font-weight:700; font-size:14px; border:none; color:#fff; cursor:pointer;
+}
+main{max-width:560px; margin:0 auto; padding:12px 12px 24px}
+.banner{
+  background:var(--amber-bg); color:var(--amber); border-radius:10px;
+  padding:10px 14px; font-weight:600; margin-bottom:12px; font-size:14px;
+}
+.stale{background:var(--card); color:var(--muted); font-weight:400}
+.dayhead{
+  font-size:13px; font-weight:700; color:var(--muted); text-transform:uppercase;
+  letter-spacing:.4px; margin:18px 4px 6px;
+}
+.dayhead.today{color:var(--accent)}
+.card{
+  background:var(--card); border:1px solid var(--line); border-radius:12px;
+  overflow:hidden; margin-bottom:8px;
+}
+.item{
+  display:flex; align-items:center; gap:12px; padding:11px 14px;
+  border-bottom:1px solid var(--line);
+}
+.item:last-child{border-bottom:none}
+.item .bar{width:4px; align-self:stretch; border-radius:2px; background:var(--accent); flex:none}
+.item.status .bar{background:var(--amber)}
+.item.clash .bar{background:var(--red)}
+.item.clash .n{color:var(--red); font-weight:600}
+.item .what{flex:1; min-width:0}
+.item .what .t{font-weight:600}
+.item .what .n{font-size:13px; color:var(--muted); overflow:hidden; text-overflow:ellipsis}
+.item .when{font-size:13px; color:var(--muted); text-align:right; flex:none; white-space:pre-line}
+.chip{
+  font-size:11px; font-weight:700; border-radius:9px; padding:2px 8px;
+  background:var(--today); color:var(--accent); flex:none;
+}
+.who{font-weight:700; min-width:44px; text-align:center; flex:none;
+  background:var(--today); color:var(--accent); border-radius:9px; padding:4px 6px; font-size:14px;}
+.empty{color:var(--muted); text-align:center; padding:32px 12px; font-size:14px}
+.datenav{
+  display:flex; align-items:center; gap:8px; margin:4px 0 14px;
+}
+.datenav button{
+  background:var(--card); border:1px solid var(--line); color:var(--ink);
+  border-radius:10px; padding:8px 14px; font-size:16px; cursor:pointer;
+}
+.datenav .cur{flex:1; text-align:center; font-weight:700}
+.datenav .cur input{
+  border:none; background:none; color:var(--ink); font:inherit; font-weight:700;
+  text-align:center; width:100%;
+}
+.rotahead{font-size:13px; font-weight:700; color:var(--muted); margin:16px 4px 6px}
+.grid{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px}
+.grid button{
+  background:var(--card); border:1px solid var(--line); color:var(--ink);
+  border-radius:12px; padding:12px 0; font-size:16px; font-weight:700;
+  width:calc(25% - 6px); cursor:pointer;
+}
+.grid button.sel{background:var(--blue); color:#fff; border-color:var(--blue)}
+nav{
+  position:fixed; bottom:0; left:0; right:0; z-index:10;
+  background:var(--card); border-top:1px solid var(--line);
+  display:flex; padding-bottom:env(safe-area-inset-bottom);
+}
+nav button{
+  flex:1; background:none; border:none; color:var(--muted); font:inherit;
+  font-size:11px; font-weight:600; padding:8px 0 6px; cursor:pointer;
+}
+nav button .ic{display:block; font-size:20px; margin-bottom:2px}
+nav button.sel{color:var(--accent)}
+.setup{max-width:420px; margin:8vh auto 0; padding:0 20px; text-align:center}
+.setup h2{margin-bottom:8px}
+.setup p{color:var(--muted); font-size:14px; margin-bottom:18px}
+.setup input[type=url]{
+  width:100%; padding:12px; border-radius:10px; border:1px solid var(--line);
+  background:var(--card); color:var(--ink); font-size:14px; margin-bottom:12px;
+}
+.btn{
+  display:inline-block; background:var(--blue); color:#fff; border:none;
+  border-radius:10px; padding:12px 22px; font-size:16px; font-weight:600;
+  cursor:pointer; margin:4px;
+}
+.btn.ghost{background:none; color:var(--accent); border:1px solid var(--line)}
+.settings .row{
+  background:var(--card); border:1px solid var(--line); border-radius:12px;
+  padding:14px; margin-bottom:10px; font-size:14px;
+}
+.settings .row .lbl{font-weight:700; margin-bottom:4px}
+.settings .row .val{color:var(--muted); word-break:break-all}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">Rota</h1>
+  <button class="me hidden" id="meBtn"></button>
+</header>
+<main id="main"></main>
+<nav id="nav" class="hidden">
+  <button data-v="me"><span class="ic">&#128100;</span>Me</button>
+  <button data-v="day"><span class="ic">&#128197;</span>Day</button>
+  <button data-v="people"><span class="ic">&#128101;</span>People</button>
+  <button data-v="settings"><span class="ic">&#9881;&#65039;</span>More</button>
+</nav>
+
+<script>
+'use strict';
+/* ---------------- state ---------------- */
+const $ = function(s){ return document.querySelector(s); };
+let view = 'me';
+let dayCursor = todayIso();
+let personView = null; // initials being viewed in People view
+
+const store = {
+  get cfg(){ try{ return JSON.parse(localStorage.rotaCfg || 'null'); }catch(e){ return null; } },
+  set cfg(v){ localStorage.rotaCfg = JSON.stringify(v); },
+  get data(){ try{ return JSON.parse(localStorage.rotaData || 'null'); }catch(e){ return null; } },
+  set data(v){ localStorage.rotaData = JSON.stringify(v); },
+};
+
+/* ---------------- date helpers ---------------- */
+function todayIso(){ return toIso(new Date()); }
+function toIso(d){
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function fromIso(s){ const p = s.split('-').map(Number); return new Date(p[0], p[1]-1, p[2]); }
+function addDays(s, n){ const d = fromIso(s); d.setDate(d.getDate()+n); return toIso(d); }
+const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MONS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function fmtDay(s){
+  const d = fromIso(s), t = todayIso();
+  const lbl = DAYS[d.getDay()] + ' ' + d.getDate() + ' ' + MONS[d.getMonth()];
+  if (s === t) return 'Today — ' + lbl;
+  if (s === addDays(t,1)) return 'Tomorrow — ' + lbl;
+  return lbl;
+}
+function fmtShort(s){ const d = fromIso(s); return d.getDate() + ' ' + MONS[d.getMonth()]; }
+
+/* ---------------- data access ---------------- */
+function events(){ const d = store.data; return d ? d.events : []; }
+/* Department-wide "of the week" roles: shown in their own section, and the
+   COTW/HF blocks mirrored across both sheets are deduped to one entry. */
+const WEEK_CANON = {
+  'Consultant of the week': 'Consultant of the week',
+  'Consultant on call (weekend)': 'Consultant on call (weekend)',
+  'HF of the week': 'HF of the week',
+  'Heart failure': 'HF of the week',
+};
+const WEEK_ORDER = ['Consultant of the week', 'Consultant on call (weekend)', 'HF of the week'];
+function shifts(){
+  const seen = {};
+  return events().filter(function(e){ return e.kind === 'shift'; })
+    .map(function(e){
+      const canon = WEEK_CANON[e.role];
+      return canon ? Object.assign({}, e, { role: canon, week: true }) : e;
+    })
+    .filter(function(e){
+      if (!e.week) return true;
+      const k = e.date + '|' + e.person + '|' + e.role;
+      if (seen[k]) return false;
+      seen[k] = true;
+      return true;
+    });
+}
+function statuses(){ return events().filter(function(e){ return e.kind === 'status'; }); }
+function people(){
+  const set = {};
+  events().forEach(function(e){ if(/^[A-Z]{1,4}$/.test(e.person)) set[e.person] = true; });
+  return Object.keys(set).sort();
+}
+function activeStatuses(day){
+  return statuses().filter(function(s){ return s.date <= day && day <= (s.endDate || s.date); });
+}
+function timeLabel(e, day){
+  if (!e.start || !e.end) return 'all day';
+  const overnight = e.end <= e.start;
+  return e.start + ' – ' + e.end + (overnight ? '\n(next day)' : '');
+}
+/* role display order = first-seen order, which follows sheet column order */
+function roleOrder(){
+  const order = {}; let i = 0;
+  shifts().forEach(function(e){
+    const k = e.rota + '|' + e.role;
+    if (!(k in order)) order[k] = i++;
+  });
+  return order;
+}
+
+/* ---------------- fetch ---------------- */
+async function refresh(showErrors){
+  const cfg = store.cfg;
+  if (!cfg || !cfg.url) return;
+  if (cfg.url === 'demo'){ store.data = { fetched: Date.now(), events: demoEvents() }; render(); return; }
+  try{
+    const from = addDays(todayIso(), -14), to = addDays(todayIso(), 120);
+    const sep = cfg.url.indexOf('?') === -1 ? '?' : '&';
+    const res = await fetch(cfg.url + sep + 'format=json&from=' + from + '&to=' + to);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const j = await res.json();
+    if (!j.events) throw new Error(j.toString().slice(0,80));
+    store.data = { fetched: Date.now(), events: j.events };
+    render();
+  }catch(err){
+    if (showErrors) alert('Could not refresh: ' + err.message + '\nShowing saved data.');
+    render();
+  }
+}
+
+/* ---------------- rendering ---------------- */
+function render(){
+  const cfg = store.cfg;
+  if (!cfg || !cfg.url){ renderSetup(); return; }
+  if (!store.data){ $('#main').innerHTML = '<div class="empty">Loading rota…</div>'; return; }
+  if (!cfg.me){ renderPickMe(); return; }
+  $('#nav').classList.remove('hidden');
+  $('#meBtn').classList.remove('hidden');
+  $('#meBtn').textContent = cfg.me;
+  document.querySelectorAll('nav button').forEach(function(b){
+    b.classList.toggle('sel', b.dataset.v === view);
+  });
+  if (view === 'me') renderPerson(cfg.me, 'My rota');
+  else if (view === 'day') renderDay();
+  else if (view === 'people') personView ? renderPerson(personView, personView + "'s rota") : renderPeople();
+  else renderSettings();
+}
+
+function staleBanner(){
+  const d = store.data;
+  if (!d || Date.now() - d.fetched < 3*3600*1000) return '';
+  const h = Math.round((Date.now() - d.fetched)/3600000);
+  return '<div class="banner stale">Data last updated ' + (h < 48 ? h + ' hours' : Math.round(h/24) + ' days') + ' ago</div>';
+}
+
+function renderPerson(who, title){
+  $('#title').textContent = title;
+  const today = todayIso();
+  const mine = shifts().filter(function(e){ return e.person === who && e.date >= today; });
+  const myStatuses = statuses().filter(function(e){
+    return e.person === who && (e.endDate || e.date) >= today;
+  });
+  let html = staleBanner();
+
+  activeStatuses(today).filter(function(s){ return s.person === who; }).forEach(function(s){
+    html += '<div class="banner">' + esc(s.summary.split(' - ')[0]) +
+      ' until ' + fmtShort(s.endDate || s.date) + '</div>';
+  });
+
+  const byDate = {};
+  mine.forEach(function(e){ (byDate[e.date] = byDate[e.date] || []).push(e); });
+  myStatuses.forEach(function(e){
+    const d = e.date >= today ? e.date : today;
+    (byDate[d] = byDate[d] || []).push(e);
+  });
+  const dates = Object.keys(byDate).sort();
+  if (!dates.length) html += '<div class="empty">No upcoming commitments found.</div>';
+  dates.forEach(function(d){
+    html += '<div class="dayhead' + (d === todayIso() ? ' today' : '') + '">' + fmtDay(d) + '</div><div class="card">';
+    byDate[d].forEach(function(e){
+      if (e.kind === 'status'){
+        const range = (e.endDate && e.endDate !== e.date) ? 'until ' + fmtShort(e.endDate) : 'all day';
+        html += '<div class="item status"><div class="bar"></div><div class="what"><div class="t">' +
+          esc(e.summary.split(' - ')[0]) + '</div></div><div class="when">' + range + '</div></div>';
+      } else {
+        html += '<div class="item"><div class="bar"></div><div class="what"><div class="t">' + esc(e.role) +
+          '</div>' + (e.note ? '<div class="n">' + esc(e.note) + '</div>' : '') +
+          '</div><span class="chip">' + esc(e.week ? 'week' : e.rota) + '</span><div class="when">' + timeLabel(e, d) + '</div></div>';
+      }
+    });
+    html += '</div>';
+  });
+  if (view === 'people'){
+    html = '<button class="btn ghost" onclick="personView=null;render()">&#8249; All people</button>' + html;
+  }
+  $('#main').innerHTML = html;
+}
+
+function renderDay(){
+  $('#title').textContent = "Who's on";
+  const d = dayCursor;
+  const order = roleOrder();
+  const todays = shifts().filter(function(e){ return e.date === d; })
+    .sort(function(a,b){
+      const ta = a.start ? 1 : 0, tb = b.start ? 1 : 0;   // all-day roles first
+      if (ta !== tb) return ta - tb;
+      if (ta && a.start !== b.start) return a.start < b.start ? -1 : 1;
+      return (order[a.rota+'|'+a.role]||0) - (order[b.rota+'|'+b.role]||0);
+    });
+  let html = staleBanner() +
+    '<div class="datenav">' +
+    '<button onclick="dayCursor=addDays(dayCursor,-1);render()">&#8249;</button>' +
+    '<div class="cur"><input type="date" value="' + d + '" onchange="dayCursor=this.value;render()"></div>' +
+    '<button onclick="dayCursor=addDays(dayCursor,1);render()">&#8250;</button>' +
+    '<button onclick="dayCursor=todayIso();render()" ' + (d===todayIso()?'disabled':'') + '>Today</button>' +
+    '</div>';
+  html += '<div class="dayhead' + (d === todayIso() ? ' today' : '') + '">' + fmtDay(d) + '</div>';
+  if (!todays.length) html += '<div class="empty">Nothing rostered this day.</div>';
+  const away = activeStatuses(d);
+  const awaySet = {};
+  away.forEach(function(s){ awaySet[s.person] = s.summary.split(' - ')[0]; });
+  const item = function(e){
+    const clash = awaySet[e.person];
+    const note = clash ? '&#9888; marked ' + esc(clash) + (e.note ? ' · ' + esc(e.note) : '')
+                       : (e.note ? esc(e.note) : '');
+    return '<div class="item' + (clash ? ' clash' : '') + '"><span class="who">' + esc(e.person) + '</span>' +
+      '<div class="what"><div class="t">' + esc(e.role) + '</div>' +
+      (note ? '<div class="n">' + note + '</div>' : '') + '</div>' +
+      '<div class="when">' + timeLabel(e, d) + '</div></div>';
+  };
+
+  const weekItems = todays.filter(function(e){ return e.week; })
+    .sort(function(a,b){ return WEEK_ORDER.indexOf(a.role) - WEEK_ORDER.indexOf(b.role); });
+  const rest = todays.filter(function(e){ return !e.week; });
+  if (weekItems.length){
+    html += '<div class="rotahead">Of the week</div><div class="card">' +
+      weekItems.map(item).join('') + '</div>';
+  }
+  const rotas = [];
+  shifts().forEach(function(e){ if (!e.week && rotas.indexOf(e.rota) === -1) rotas.push(e.rota); });
+  rotas.forEach(function(r){
+    const rows = rest.filter(function(e){ return e.rota === r; });
+    if (!rows.length) return;
+    html += '<div class="rotahead">' + esc(r) + ' rota</div><div class="card">' +
+      rows.map(item).join('') + '</div>';
+  });
+  if (away.length){
+    html += '<div class="rotahead">Away / leave</div><div class="card">';
+    away.forEach(function(s){
+      html += '<div class="item status"><span class="who">' + esc(s.person) + '</span>' +
+        '<div class="what"><div class="t">' + esc(s.summary.split(' - ')[0]) + '</div></div>' +
+        '<div class="when">' + ((s.endDate && s.endDate !== s.date) ? 'until ' + fmtShort(s.endDate) : '') + '</div></div>';
+    });
+    html += '</div>';
+  }
+  $('#main').innerHTML = html;
+}
+
+function renderPeople(){
+  $('#title').textContent = 'People';
+  let html = staleBanner() + '<div class="grid">';
+  people().forEach(function(p){
+    html += '<button onclick="personView=\'' + p + '\';render()">' + esc(p) + '</button>';
+  });
+  html += '</div>';
+  $('#main').innerHTML = html;
+}
+
+function renderSettings(){
+  $('#title').textContent = 'Settings';
+  const cfg = store.cfg, d = store.data;
+  $('#main').innerHTML =
+    '<div class="settings">' +
+    '<div class="row"><div class="lbl">You are</div><div class="val">' + esc(cfg.me || '?') +
+    '</div><button class="btn ghost" style="margin-top:8px" onclick="changeMe()">Change</button></div>' +
+    '<div class="row"><div class="lbl">Rota source</div><div class="val">' +
+    (cfg.url === 'demo' ? 'Demo data' : esc(cfg.url.slice(0, 64) + '…')) +
+    '</div><button class="btn ghost" style="margin-top:8px" onclick="changeUrl()">Change</button></div>' +
+    '<div class="row"><div class="lbl">Data</div><div class="val">' +
+    (d ? d.events.length + ' events, updated ' + new Date(d.fetched).toLocaleString() : 'none') +
+    '</div><button class="btn" style="margin-top:8px" onclick="refresh(true)">Refresh now</button></div>' +
+    '<div class="row"><div class="lbl">Install</div><div class="val">iPhone: Share &#8599; then "Add to Home Screen". Android: browser menu, "Install app".</div></div>' +
+    '</div>';
+}
+
+function renderSetup(){
+  $('#nav').classList.add('hidden');
+  $('#meBtn').classList.add('hidden');
+  $('#title').textContent = 'Rota';
+  $('#main').innerHTML =
+    '<div class="setup"><h2>Set up</h2>' +
+    '<p>Paste the rota feed link you were given (the one containing <b>person=ALL</b>), or try the demo.</p>' +
+    '<input type="url" id="urlIn" placeholder="https://script.google.com/macros/s/…">' +
+    '<button class="btn" onclick="saveUrl()">Continue</button>' +
+    '<button class="btn ghost" onclick="useDemo()">Demo</button></div>';
+}
+
+function renderPickMe(){
+  $('#nav').classList.add('hidden');
+  $('#title').textContent = 'Rota';
+  let html = '<div class="setup"><h2>Who are you?</h2><p>Pick your initials. You can change this later.</p><div class="grid">';
+  people().forEach(function(p){
+    html += '<button onclick="pickMe(\'' + p + '\')">' + esc(p) + '</button>';
+  });
+  html += '</div></div>';
+  $('#main').innerHTML = html;
+}
+
+/* ---------------- actions ---------------- */
+function saveUrl(){
+  const u = $('#urlIn').value.trim();
+  if (!u) return;
+  store.cfg = { url: u, me: null };
+  store.data = null;
+  render();
+  refresh(true);
+}
+function useDemo(){
+  store.cfg = { url: 'demo', me: null };
+  refresh();
+}
+function pickMe(p){
+  const c = store.cfg; c.me = p; store.cfg = c;
+  view = 'me';
+  render();
+}
+function changeMe(){
+  const c = store.cfg; c.me = null; store.cfg = c; render();
+}
+function changeUrl(){
+  if (!confirm('Replace the rota source link?')) return;
+  store.cfg = null; store.data = null; render();
+}
+function esc(s){
+  return String(s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+
+/* ---------------- demo data ---------------- */
+function demoEvents(){
+  const ppl = ['SK','KG','BR','NL','CD','RR'];
+  const evs = [];
+  const t = todayIso();
+  for (let i = -7; i < 42; i++){
+    const d = addDays(t, i);
+    const dow = fromIso(d).getDay();
+    const wk = Math.floor((i + 700) / 7);
+    const p = function(n){ return ppl[(wk + n) % ppl.length]; };
+    if (dow >= 1 && dow <= 5){
+      evs.push({rota:'Echo', kind:'shift', date:d, endDate:d, role:'Valve', person:p(0), summary:'Valve (Echo)', note:'', start:null, end:null});
+      evs.push({rota:'Echo', kind:'shift', date:d, endDate:d, role:'ECHO cover', person:p(dow), summary:'ECHO cover (Echo)', note:'', start:'08:00', end:'17:00'});
+      evs.push({rota:'Echo', kind:'shift', date:d, endDate:d, role:'ECHO on call', person:p(dow), summary:'ECHO on call (Echo)', note:'', start:'17:00', end:'08:00'});
+      evs.push({rota:'HF', kind:'shift', date:d, endDate:d, role:'HF of the week', person:p(2), summary:'HF of the week (HF)', note:'', start:null, end:null});
+      evs.push({rota:'HF', kind:'shift', date:d, endDate:d, role:'Consultant of the week', person:p(3), summary:'Consultant of the week (HF)', note:'', start:null, end:null});
+    } else {
+      evs.push({rota:'Echo', kind:'shift', date:d, endDate:d, role:'ECHO on call', person:p(1), summary:'ECHO on call (Echo)', note:'', start:'08:00', end:'08:00'});
+      evs.push({rota:'HF', kind:'shift', date:d, endDate:d, role:'Consultant on call (weekend)', person:p(4), summary:'Consultant on call (weekend) (HF)', note:'', start:null, end:null});
+    }
+  }
+  evs.push({rota:'Echo', kind:'status', date:addDays(t,10), endDate:addDays(t,17), role:null, person:'KG', summary:'A/L - KG', note:'', start:null, end:null});
+  evs.push({rota:'Echo', kind:'status', date:addDays(t,-2), endDate:addDays(t,3), role:null, person:'RR', summary:'A/L - RR', note:'', start:null, end:null});
+  return evs;
+}
+
+/* ---------------- boot ---------------- */
+document.querySelectorAll('nav button').forEach(function(b){
+  b.addEventListener('click', function(){
+    view = b.dataset.v;
+    if (view === 'people') personView = null;
+    if (view === 'day') dayCursor = todayIso();
+    render();
+  });
+});
+$('#meBtn').addEventListener('click', function(){ view = 'me'; render(); });
+
+/* accept config via #url=...&me=SK so one link can set a phone up */
+(function(){
+  if (location.hash.length > 1){
+    const h = new URLSearchParams(location.hash.slice(1));
+    if (h.get('url')){
+      store.cfg = { url: h.get('url'), me: h.get('me') || null };
+      store.data = null;
+      history.replaceState(null, '', location.pathname);
+    }
+  }
+})();
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+render();
+refresh(false);
+</script>
+</body>
+</html>
