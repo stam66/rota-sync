@@ -47,6 +47,30 @@ it updates automatically from then on.
 > schedule (typically every few hours) — fine for a rota, but last-minute
 > swaps may lag. Emailed invite updates can cover that later if needed.
 
+## Weekly MediRota change report
+
+Every Monday morning the script diffs the rotas against a snapshot taken at
+the last report and emails the admin what changed — duty swaps (`SK → KG`),
+additions, removals, leave changes (compressed into date ranges) — plus any
+current rostered-while-away conflicts. The admin updates MediRota from the
+email instead of hunting through the sheets.
+
+Setup:
+
+1. In `CONFIG.report.recipients`, add the admin's address(es).
+2. Run **`setupChangeReport()`** once — grants Mail/Drive permission, saves
+   the baseline snapshot (`rota-sync-snapshot.json` in your Drive) and
+   installs the Monday 7am trigger. No web-app redeploy needed: triggers
+   run the latest saved code.
+3. Optional: **`previewChangeReport()`** logs the pending diff without
+   emailing or advancing the snapshot; **`sendChangeReport()`** runs the
+   real thing on demand.
+
+Notes: nothing is emailed when there are no changes and no conflicts
+(`sendIfEmpty: false`); the snapshot only advances after a successful send,
+so a failed week's changes roll into the next report. `lookBackDays` (14)
+controls how far back retroactive edits are caught.
+
 ## Invite mode — events in the person's REAL work calendar
 
 The subscribed ICS feed lives in a separate overlay calendar in Outlook.

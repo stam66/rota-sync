@@ -73,6 +73,20 @@ const CONFIG = {
   // it), matched by label. Kept in step with the sheets' red-cell rules.
   conflictExemptRoles: ['Vetting HF'],
 
+  // Weekly MediRota change report: diffs the rotas against the snapshot
+  // taken at the last report and emails the admin what changed, plus any
+  // duty-while-on-leave conflicts. Run setupChangeReport() once to grant
+  // permissions, take the baseline snapshot and install the weekly trigger.
+  report: {
+    recipients: [], // TODO: e.g. ['rota.admin@nhs.net'] — empty = report only logs
+    subjectPrefix: '[Rota] ',
+    weekday: 'MONDAY',
+    hour: 7,          // trigger fires between 7 and 8 am
+    lookBackDays: 14, // include retroactive edits this far back
+    conflictDays: 90, // how far ahead conflicts are listed
+    sendIfEmpty: false,
+  },
+
   // Invite mode: shifts are mirrored into a Google Calendar with the
   // person's nhs.net address as guest, so they arrive in the person's REAL
   // work calendar as meeting invitations (unlike the subscribed ICS feed,
@@ -360,6 +374,225 @@ function foldLine(line) {
   return out.join('\r\n');
 }
 
+// ------------------------------------------------------- change report
+
+const SNAPSHOT_FILENAME = 'rota-sync-snapshot.json';
+
+/** Run once from the editor: grants Mail/Drive permission, takes the
+ *  baseline snapshot and installs the weekly trigger. */
+function setupChangeReport() {
+  const hasTrigger = ScriptApp.getProjectTriggers().some(function (t) {
+    return t.getHandlerFunction() === 'sendChangeReport';
+  });
+  if (!hasTrigger) {
+    ScriptApp.newTrigger('sendChangeReport').timeBased()
+      .onWeekDay(ScriptApp.WeekDay[CONFIG.report.weekday])
+      .atHour(CONFIG.report.hour).create();
+  }
+  if (!loadSnapshot()) {
+    saveSnapshot(currentState());
+    Logger.log('Baseline snapshot taken.');
+  }
+  Logger.log('Weekly report trigger installed (%s %s:00). Recipients: %s',
+    CONFIG.report.weekday, CONFIG.report.hour,
+    CONFIG.report.recipients.join(', ') || '(none — logs only)');
+}
+
+/** Preview the report in the log without emailing or moving the snapshot. */
+function previewChangeReport() {
+  const old = loadSnapshot();
+  if (!old) { Logger.log('No baseline yet — run setupChangeReport() first.'); return; }
+  const diff = diffStates(old, currentState());
+  Logger.log(JSON.stringify(diff, null, 2));
+}
+
+/** Weekly trigger target. Emails the diff since the last report, then
+ *  advances the snapshot (only after a successful send). */
+function sendChangeReport() {
+  const cur = currentState();
+  const old = loadSnapshot();
+  if (!old) { saveSnapshot(cur); Logger.log('No baseline; snapshot taken, no report.'); return; }
+
+  const diff = diffStates(old, cur);
+  const today = Utilities.formatDate(new Date(), CONFIG.timezone, 'yyyy-MM-dd');
+  const horizon = Utilities.formatDate(
+    new Date(Date.now() + CONFIG.report.conflictDays * 86400000), CONFIG.timezone, 'yyyy-MM-dd');
+  const conflicts = computeConflicts().filter(function (c) {
+    return c.date >= today && c.date <= horizon;
+  });
+
+  const total = diff.duties.length + diff.statuses.length;
+  if (!total && !conflicts.length && !CONFIG.report.sendIfEmpty) {
+    saveSnapshot(cur);
+    Logger.log('No changes and no conflicts — report skipped.');
+    return;
+  }
+
+  const subject = CONFIG.report.subjectPrefix +
+    (total ? total + ' change' + (total === 1 ? '' : 's') : 'no changes') +
+    (conflicts.length ? ', ' + conflicts.length + ' conflict' + (conflicts.length === 1 ? '' : 's') : '');
+  const html = reportHtml(diff, conflicts);
+
+  if (CONFIG.report.recipients.length) {
+    MailApp.sendEmail({
+      to: CONFIG.report.recipients.join(','),
+      subject: subject,
+      htmlBody: html,
+    });
+    Logger.log('Report sent to %s.', CONFIG.report.recipients.join(', '));
+  } else {
+    Logger.log('No recipients configured; report below:\n%s', html);
+  }
+  saveSnapshot(cur);
+}
+
+/** Compact picture of the rotas: duty assignments and per-day statuses. */
+function currentState() {
+  const from = Utilities.formatDate(
+    new Date(Date.now() - CONFIG.report.lookBackDays * 86400000), CONFIG.timezone, 'yyyy-MM-dd');
+  const duties = {}, statuses = {};
+  collectEvents().forEach(function (e) {
+    if (e.date < from && (e.endDate || e.date) < from) return;
+    if (e.kind === 'shift') {
+      const k = e.date + '|' + e.rota + '|' + e.role;
+      duties[k] = duties[k] ? duties[k] + '+' + e.person : e.person;
+    } else {
+      const label = e.summary.split(' - ')[0];
+      for (let d = e.date; d <= (e.endDate || e.date); d = nextDay(d)) {
+        if (d >= from) statuses[e.person + '|' + d] = label;
+      }
+    }
+  });
+  return { from: from, duties: duties, statuses: statuses };
+}
+
+function diffStates(oldState, cur) {
+  // Only compare dates both snapshots could see.
+  const from = oldState.from > cur.from ? oldState.from : cur.from;
+
+  const duties = [];
+  const dutyKeys = {};
+  Object.keys(oldState.duties).concat(Object.keys(cur.duties)).forEach(function (k) { dutyKeys[k] = true; });
+  Object.keys(dutyKeys).forEach(function (k) {
+    const date = k.split('|')[0];
+    if (date < from) return;
+    const was = oldState.duties[k] || null, now = cur.duties[k] || null;
+    if (was !== now) {
+      duties.push({ date: date, rota: k.split('|')[1], role: k.split('|')[2], was: was, now: now });
+    }
+  });
+  duties.sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+
+  // Status diffs, compressed into runs of consecutive days.
+  const perPerson = {}; // 'SK|A/L (added)' -> [dates]
+  const statusKeys = {};
+  Object.keys(oldState.statuses).concat(Object.keys(cur.statuses)).forEach(function (k) { statusKeys[k] = true; });
+  Object.keys(statusKeys).forEach(function (k) {
+    const date = k.split('|')[1];
+    if (date < from) return;
+    const was = oldState.statuses[k] || null, now = cur.statuses[k] || null;
+    if (was === now) return;
+    const desc = now === null ? was + ' removed'
+      : was === null ? now + ' added'
+      : was + ' → ' + now;
+    const key = k.split('|')[0] + '|' + desc;
+    (perPerson[key] = perPerson[key] || []).push(date);
+  });
+  const statuses = Object.keys(perPerson).sort().map(function (key) {
+    return {
+      person: key.split('|')[0],
+      change: key.split('|')[1],
+      ranges: compressDates(perPerson[key]),
+    };
+  });
+
+  return { duties: duties, statuses: statuses };
+}
+
+/** ['2026-07-01','2026-07-02','2026-07-04'] -> '1–2 Jul, 4 Jul' */
+function compressDates(dates) {
+  dates.sort();
+  const runs = [];
+  dates.forEach(function (d) {
+    const last = runs[runs.length - 1];
+    if (last && nextDay(last.end) === d) last.end = d;
+    else runs.push({ start: d, end: d });
+  });
+  return runs.map(function (r) {
+    return r.start === r.end ? prettyDate(r.start) : prettyDate(r.start) + ' – ' + prettyDate(r.end);
+  }).join(', ');
+}
+
+function prettyDate(iso) {
+  const p = iso.split('-').map(Number);
+  return Utilities.formatDate(new Date(p[0], p[1] - 1, p[2]), CONFIG.timezone, 'EEE d MMM');
+}
+
+function reportHtml(diff, conflicts) {
+  const esc = function (s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  };
+  const th = 'style="text-align:left;padding:4px 10px;border-bottom:2px solid #ccc"';
+  const td = 'style="padding:4px 10px;border-bottom:1px solid #eee"';
+  let html = '<div style="font-family:Arial,sans-serif;font-size:14px;color:#222">';
+  html += '<p>Rota changes since the last report, for updating MediRota.</p>';
+
+  if (diff.duties.length) {
+    html += '<h3>Duty changes (' + diff.duties.length + ')</h3><table style="border-collapse:collapse">' +
+      '<tr><th ' + th + '>Date</th><th ' + th + '>Rota</th><th ' + th + '>Duty</th><th ' + th + '>Was</th><th ' + th + '>Now</th></tr>';
+    diff.duties.forEach(function (c) {
+      html += '<tr><td ' + td + '>' + prettyDate(c.date) + '</td><td ' + td + '>' + esc(c.rota) +
+        '</td><td ' + td + '>' + esc(c.role) + '</td><td ' + td + '>' + esc(c.was || '—') +
+        '</td><td ' + td + '><b>' + esc(c.now || '—') + '</b></td></tr>';
+    });
+    html += '</table>';
+  }
+
+  if (diff.statuses.length) {
+    html += '<h3>Leave / absence changes</h3><ul>';
+    diff.statuses.forEach(function (s) {
+      html += '<li><b>' + esc(s.person) + '</b>: ' + esc(s.change) + ' — ' + esc(s.ranges) + '</li>';
+    });
+    html += '</ul>';
+  }
+
+  if (!diff.duties.length && !diff.statuses.length) {
+    html += '<p>No rota changes since the last report.</p>';
+  }
+
+  if (conflicts.length) {
+    html += '<h3 style="color:#b00020">Conflicts — rostered while marked away (next ' +
+      CONFIG.report.conflictDays + ' days)</h3><table style="border-collapse:collapse">' +
+      '<tr><th ' + th + '>Date</th><th ' + th + '>Who</th><th ' + th + '>Duty</th><th ' + th + '>Marked</th></tr>';
+    conflicts.forEach(function (c) {
+      html += '<tr><td ' + td + '>' + prettyDate(c.date) + '</td><td ' + td + '>' + esc(c.person) +
+        '</td><td ' + td + '>' + esc(c.duty) + '</td><td ' + td + '>' + esc(c.leave) + '</td></tr>';
+    });
+    html += '</table>';
+  }
+
+  html += '<p style="color:#777;font-size:12px">Generated ' +
+    Utilities.formatDate(new Date(), CONFIG.timezone, 'EEE d MMM yyyy, HH:mm') +
+    ' · <a href="https://docs.google.com/spreadsheets/d/' + CONFIG.rotas[0].spreadsheetId +
+    '">Echo rota</a> · <a href="https://docs.google.com/spreadsheets/d/' + CONFIG.rotas[1].spreadsheetId +
+    '">HF rota</a></p></div>';
+  return html;
+}
+
+function loadSnapshot() {
+  const files = DriveApp.getFilesByName(SNAPSHOT_FILENAME);
+  if (!files.hasNext()) return null;
+  try { return JSON.parse(files.next().getBlob().getDataAsString()); }
+  catch (err) { return null; }
+}
+
+function saveSnapshot(state) {
+  const files = DriveApp.getFilesByName(SNAPSHOT_FILENAME);
+  const json = JSON.stringify(state);
+  if (files.hasNext()) files.next().setContent(json);
+  else DriveApp.createFile(SNAPSHOT_FILENAME, json, 'application/json');
+}
+
 // ---------------------------------------------------------------- invites
 
 /** Run once: creates the sync calendar and a daily 6am trigger for
@@ -501,6 +734,15 @@ function personalToken(person) {
  * editor to audit; the same list will feed the MediRota change report.
  */
 function listConflicts() {
+  const conflicts = computeConflicts();
+  Logger.log('%s conflicts found:', conflicts.length);
+  conflicts.forEach(function (c) {
+    Logger.log('%s  %s assigned "%s" but marked "%s"', c.date, c.person, c.duty, c.leave);
+  });
+  return conflicts;
+}
+
+function computeConflicts() {
   const events = collectEvents();
 
   const leave = {}; // 'SK|2026-03-05' -> 'A/L'
@@ -510,19 +752,13 @@ function listConflicts() {
     }
   });
 
-  const conflicts = events.filter(function (e) {
+  return events.filter(function (e) {
     return e.kind === 'shift' &&
       CONFIG.conflictExemptRoles.indexOf(e.role) === -1 &&
       leave[e.person + '|' + e.date];
   }).map(function (e) {
     return { date: e.date, person: e.person, duty: e.summary, leave: leave[e.person + '|' + e.date] };
   });
-
-  Logger.log('%s conflicts found:', conflicts.length);
-  conflicts.forEach(function (c) {
-    Logger.log('%s  %s assigned "%s" but marked "%s"', c.date, c.person, c.duty, c.leave);
-  });
-  return conflicts;
 }
 
 /** Quick sanity check from the editor: logs SK's next 20 events. */
