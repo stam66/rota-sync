@@ -24,7 +24,9 @@
   }
 }
 *{box-sizing:border-box; margin:0}
-html{height:100%; background:var(--bg)}
+/* html canvas matches the nav so any iOS viewport under-report shows as
+   an extension of the bottom bar rather than a floating gap */
+html{height:100%; background:var(--card)}
 body{
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
   background:var(--bg); color:var(--ink); font-size:16px;
@@ -148,7 +150,7 @@ nav button.sel{color:var(--accent)}
 
 <script>
 'use strict';
-const APP_VERSION = '2026-07-06.7';
+const APP_VERSION = '2026-07-06.8';
 /* ---------------- state ---------------- */
 const $ = function(s){ return document.querySelector(s); };
 let view = 'me';
@@ -406,7 +408,22 @@ function renderSettings(){
     '</div><button class="btn" style="margin-top:8px" onclick="refresh(true)">Refresh now</button></div>' +
     '<div class="row"><div class="lbl">Install</div><div class="val">iPhone: Share &#8599; then "Add to Home Screen". Android: browser menu, "Install app".</div></div>' +
     '<div class="row"><div class="lbl">App version</div><div class="val">' + APP_VERSION + '</div></div>' +
+    '<div class="row"><div class="lbl">Diagnostics</div><div class="val">' + diagnostics() + '</div></div>' +
     '</div>';
+}
+
+function diagnostics(){
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;padding-bottom:env(safe-area-inset-bottom);visibility:hidden';
+  document.body.appendChild(probe);
+  const safeBottom = getComputedStyle(probe).paddingBottom;
+  probe.remove();
+  return 'screen ' + screen.width + 'x' + screen.height +
+    ' · innerH ' + window.innerHeight +
+    ' · clientH ' + document.documentElement.clientHeight +
+    ' · visualVp ' + (window.visualViewport ? Math.round(window.visualViewport.height) : 'n/a') +
+    ' · safeBottom ' + safeBottom +
+    ' · standalone ' + (navigator.standalone === true);
 }
 
 function renderSetup(){
