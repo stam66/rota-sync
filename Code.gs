@@ -51,7 +51,7 @@ const CONFIG = {
       ],
       // Per-person status columns (A/L, OOO, exams...). Header must equal
       // the initials exactly.
-      people: ['CD', 'RR', 'SK', 'KG', 'BR', 'NL', 'JO', 'LB'],
+      people: ['CD', 'RR', 'SK', 'KG', 'BR', 'NL', 'JO', 'LB', 'CA'],
     },
     {
       name: 'HF',
