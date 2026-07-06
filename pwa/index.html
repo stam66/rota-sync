@@ -28,7 +28,9 @@ html{height:100%; background:var(--bg)}
 body{
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
   background:var(--bg); color:var(--ink); font-size:16px;
-  height:100vh; height:100dvh;
+  /* NOT 100vh/100dvh: in iOS standalone mode those exclude the bottom
+     safe area, leaving a gap below the nav. 100% fills the real screen. */
+  height:100%;
   display:flex; flex-direction:column; overflow:hidden;
 }
 header{
@@ -101,11 +103,11 @@ main{
 .grid button.sel{background:var(--blue); color:#fff; border-color:var(--blue)}
 nav{
   flex:none; background:var(--card); border-top:1px solid var(--line);
-  display:flex; padding-bottom:max(0px, calc(env(safe-area-inset-bottom) - 14px));
+  display:flex; padding-bottom:max(0px, calc(env(safe-area-inset-bottom) - 18px));
 }
 nav button{
   flex:1; background:none; border:none; color:var(--muted); font:inherit;
-  font-size:10px; font-weight:600; padding:7px 0 5px; cursor:pointer;
+  font-size:10px; font-weight:600; padding:10px 0 5px; cursor:pointer;
 }
 nav button .ic{display:block; font-size:18px; margin-bottom:1px}
 nav button.sel{color:var(--accent)}
