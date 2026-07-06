@@ -408,7 +408,7 @@ function renderSetup(){
   $('#title').textContent = 'Rota';
   $('#main').innerHTML =
     '<div class="setup"><h2>Set up</h2>' +
-    '<p>Paste the rota feed link you were given (the one containing <b>person=ALL</b>), or try the demo.</p>' +
+    '<p>Paste the rota link from your welcome message (the whole thing is fine), or try the demo.</p>' +
     '<input type="url" id="urlIn" placeholder="https://script.google.com/macros/s/…">' +
     '<button class="btn" onclick="saveUrl()">Continue</button>' +
     '<button class="btn ghost" onclick="useDemo()">Demo</button></div>';
@@ -427,9 +427,16 @@ function renderPickMe(){
 
 /* ---------------- actions ---------------- */
 function saveUrl(){
-  const u = $('#urlIn').value.trim();
+  let u = $('#urlIn').value.trim();
   if (!u) return;
-  store.cfg = { url: u, me: null };
+  // Accept the full app link (…#url=<feed>&me=XX) as well as a bare feed URL
+  let me = null;
+  const hash = u.indexOf('#');
+  if (hash !== -1){
+    const h = new URLSearchParams(u.slice(hash + 1));
+    if (h.get('url')){ u = h.get('url'); me = h.get('me') || null; }
+  }
+  store.cfg = { url: u, me: me };
   store.data = null;
   render();
   refresh(true);
