@@ -148,6 +148,7 @@ nav button.sel{color:var(--accent)}
 
 <script>
 'use strict';
+const APP_VERSION = '2026-07-06.7';
 /* ---------------- state ---------------- */
 const $ = function(s){ return document.querySelector(s); };
 let view = 'me';
@@ -404,6 +405,7 @@ function renderSettings(){
     (d ? d.events.length + ' events, updated ' + new Date(d.fetched).toLocaleString() : 'none') +
     '</div><button class="btn" style="margin-top:8px" onclick="refresh(true)">Refresh now</button></div>' +
     '<div class="row"><div class="lbl">Install</div><div class="val">iPhone: Share &#8599; then "Add to Home Screen". Android: browser menu, "Install app".</div></div>' +
+    '<div class="row"><div class="lbl">App version</div><div class="val">' + APP_VERSION + '</div></div>' +
     '</div>';
 }
 
