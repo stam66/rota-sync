@@ -8,7 +8,9 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<!-- NOT black-translucent: on iOS 18+ it shrinks the standalone webview by
+     the top inset and letterboxes the bottom, detaching the nav bar. -->
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>
 :root{
   --blue:#005EB8; --blue-dk:#003d78; --bg:#f4f6f9; --card:#ffffff;
@@ -150,7 +152,7 @@ nav button.sel{color:var(--accent)}
 
 <script>
 'use strict';
-const APP_VERSION = '2026-07-06.8';
+const APP_VERSION = '2026-07-06.9';
 /* ---------------- state ---------------- */
 const $ = function(s){ return document.querySelector(s); };
 let view = 'me';
