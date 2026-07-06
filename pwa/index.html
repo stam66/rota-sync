@@ -183,8 +183,11 @@ const WEEK_CANON = {
   'Consultant on call (weekend)': 'Consultant on call (weekend)',
   'HF of the week': 'HF of the week',
   'Heart failure': 'HF of the week',
+  'Valve': 'Valve',
+  'Endocarditis': 'Endocarditis',
 };
-const WEEK_ORDER = ['Consultant of the week', 'Consultant on call (weekend)', 'HF of the week'];
+const WEEK_ORDER = ['Consultant of the week', 'Consultant on call (weekend)',
+  'HF of the week', 'Valve', 'Endocarditis'];
 function shifts(){
   const seen = {};
   return events().filter(function(e){ return e.kind === 'shift'; })
