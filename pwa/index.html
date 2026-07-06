@@ -25,13 +25,14 @@
 }
 *{box-sizing:border-box; margin:0}
 html{height:100%; background:var(--bg)}
-body{min-height:100%;
+body{
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
   background:var(--bg); color:var(--ink); font-size:16px;
-  padding-bottom:calc(52px + env(safe-area-inset-bottom));
+  height:100vh; height:100dvh;
+  display:flex; flex-direction:column; overflow:hidden;
 }
 header{
-  position:sticky; top:0; z-index:10; background:var(--blue); color:#fff;
+  flex:none; background:var(--blue); color:#fff;
   padding:calc(10px + env(safe-area-inset-top)) 16px 10px;
   display:flex; align-items:center; gap:10px;
 }
@@ -40,7 +41,10 @@ header .me{
   background:rgba(255,255,255,.2); border-radius:14px; padding:3px 12px;
   font-weight:700; font-size:14px; border:none; color:#fff; cursor:pointer;
 }
-main{max-width:560px; margin:0 auto; padding:12px 12px 24px}
+main{
+  flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch;
+  width:100%; max-width:560px; margin:0 auto; padding:12px 12px 24px;
+}
 .banner{
   background:var(--amber-bg); color:var(--amber); border-radius:10px;
   padding:10px 14px; font-weight:600; margin-bottom:12px; font-size:14px;
@@ -96,13 +100,12 @@ main{max-width:560px; margin:0 auto; padding:12px 12px 24px}
 }
 .grid button.sel{background:var(--blue); color:#fff; border-color:var(--blue)}
 nav{
-  position:fixed; bottom:0; left:0; right:0; z-index:10;
-  background:var(--card); border-top:1px solid var(--line);
-  display:flex; padding-bottom:max(0px, calc(env(safe-area-inset-bottom) - 16px));
+  flex:none; background:var(--card); border-top:1px solid var(--line);
+  display:flex; padding-bottom:max(0px, calc(env(safe-area-inset-bottom) - 14px));
 }
 nav button{
   flex:1; background:none; border:none; color:var(--muted); font:inherit;
-  font-size:10px; font-weight:600; padding:5px 0 3px; cursor:pointer;
+  font-size:10px; font-weight:600; padding:7px 0 5px; cursor:pointer;
 }
 nav button .ic{display:block; font-size:18px; margin-bottom:1px}
 nav button.sel{color:var(--accent)}
@@ -496,9 +499,10 @@ document.querySelectorAll('nav button').forEach(function(b){
     if (view === 'people') personView = null;
     if (view === 'day') dayCursor = todayIso();
     render();
+    $('#main').scrollTop = 0;
   });
 });
-$('#meBtn').addEventListener('click', function(){ view = 'me'; render(); });
+$('#meBtn').addEventListener('click', function(){ view = 'me'; render(); $('#main').scrollTop = 0; });
 
 /* accept config via #url=...&me=SK so one link can set a phone up */
 (function(){
