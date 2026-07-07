@@ -169,8 +169,27 @@ function collectEvents() {
   events = mergeConsecutiveStatuses(events);
   events.sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
 
-  try { cache.put('events-v1', JSON.stringify(events), 600); } catch (err) { /* too big for cache: fine */ }
+  // TTL outlasts the 10-minute warmCache() trigger so users always hit warm.
+  try { cache.put('events-v1', JSON.stringify(events), 900); } catch (err) { /* too big for cache: fine */ }
   return events;
+}
+
+/** Trigger target: keeps the parse cache warm so user requests are fast. */
+function warmCache() {
+  CacheService.getScriptCache().remove('events-v1');
+  collectEvents();
+}
+
+/** Run once: installs the every-10-minutes cache warmer. The cache is
+ *  shared between saved code and the deployed web app, so no redeploy is
+ *  needed for this to speed up the live feed/app. */
+function setupCacheWarmer() {
+  const has = ScriptApp.getProjectTriggers().some(function (t) {
+    return t.getHandlerFunction() === 'warmCache';
+  });
+  if (!has) ScriptApp.newTrigger('warmCache').timeBased().everyMinutes(10).create();
+  warmCache();
+  Logger.log('Cache warmer installed (every 10 minutes).');
 }
 
 function parseSheet(rota, sheet, from, to) {

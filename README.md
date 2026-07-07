@@ -47,6 +47,14 @@ it updates automatically from then on.
 > schedule (typically every few hours) — fine for a rota, but last-minute
 > swaps may lag. Emailed invite updates can cover that later if needed.
 
+## Performance
+
+Parsed events are cached for 15 minutes; run **`setupCacheWarmer()`** once
+to install a 10-minute trigger that keeps the cache warm, so user requests
+never pay for a full spreadsheet re-parse (which can take 30s+ on a bad
+day). The cache is shared with the deployed web app — no redeploy needed.
+Sheet edits reach the feeds within ~10 minutes.
+
 ## Weekly MediRota change report
 
 Every Monday morning the script diffs the rotas against a snapshot taken at
