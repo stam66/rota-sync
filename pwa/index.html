@@ -152,7 +152,7 @@ nav button.sel{color:var(--accent)}
 
 <script>
 'use strict';
-const APP_VERSION = '2026-07-06.9';
+const APP_VERSION = '2026-07-07.10';
 /* ---------------- state ---------------- */
 const $ = function(s){ return document.querySelector(s); };
 let view = 'me';
@@ -455,6 +455,9 @@ function renderPickMe(){
 function saveUrl(){
   let u = $('#urlIn').value.trim();
   if (!u) return;
+  // Unwrap Outlook/NHSmail Safe Links rewrapping (email-mangled URLs)
+  const sl = u.match(/safelinks\.protection\.outlook\.com\/\?url=([^&\s]+)/i);
+  if (sl) u = decodeURIComponent(sl[1]);
   // Accept the full app link (…#url=<feed>&me=XX) as well as a bare feed URL
   let me = null;
   const hash = u.indexOf('#');
